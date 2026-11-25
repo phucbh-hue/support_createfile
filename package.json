@@ -1,0 +1,22 @@
+{
+  "name": "support-createfile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Điền mẫu Word hàng loạt từ file Excel bằng Claude",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0"
+  },
+  "devDependencies": {
+    "@xmldom/xmldom": "^0.9.8",
+    "jszip": "^3.10.1",
+    "xlsx": "^0.18.5"
+  }
+}

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tạo file hàng loạt từ mẫu</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%23d9480f%27/%3E%3Cpath d=%27M10 8h9l4 4v12H10z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Công cụ nội bộ</p>
+      <h1>Tạo file hàng loạt từ mẫu Word</h1>
+      <p class="lead">Tải mẫu và file dữ liệu lên, mô tả việc cần làm. AI đọc cả hai rồi điền mẫu cho từng khách hàng, anh/chị xem trước rồi tải về.</p>
+    </header>
+
+    <form id="form" novalidate>
+      <section class="card" id="access" hidden>
+        <label for="password">Mã truy cập</label>
+        <input id="password" type="password" autocomplete="current-password" placeholder="Nhập mã được cấp">
+      </section>
+
+      <section class="card">
+        <h2><span class="step">1</span> File đầu vào</h2>
+        <div class="grid">
+          <div class="field">
+            <label for="template">Mẫu Word (.docx)</label>
+            <input id="template" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+            <p class="hint" id="templateInfo">Ví dụ: mẫu biên bản giao hàng, thư xác nhận.</p>
+          </div>
+          <div class="field">
+            <label for="data">File dữ liệu (.xlsx, .xls, .csv)</label>
+            <input id="data" type="file" accept=".xlsx,.xls,.csv">
+            <p class="hint" id="dataInfo">Danh sách khách hàng và số liệu cần điền.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="step">2</span> Mô tả yêu cầu</h2>
+        <div class="field">
+          <label for="prompt">Cần tạo file như thế nào?</label>
+          <textarea id="prompt" rows="5" placeholder="Ví dụ: Tạo biên bản giao hàng cho từng người nhận trong file. Mỗi người 2 biên bản riêng: một cho voucher Lucky draw, một cho voucher Tour. Điền tên vào cả phần chữ ký bên nhận."></textarea>
+        </div>
+        <div class="field">
+          <label for="fields">Các trường cần lấy <span class="optional">không bắt buộc</span></label>
+          <input id="fields" type="text" placeholder="Ví dụ: Người nhận, Số điện thoại, Địa chỉ, Số lượng, Mệnh giá">
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="grid">
+          <div class="field">
+            <label for="customerCount">Số khách hàng <span class="optional">ước lượng</span></label>
+            <input id="customerCount" type="number" min="1" inputmode="numeric" placeholder="Ví dụ: 20">
+          </div>
+          <div class="field">
+            <label for="expectedFiles">Số file đầu ra <span class="optional">ước lượng</span></label>
+            <input id="expectedFiles" type="number" min="1" inputmode="numeric" placeholder="Ví dụ: 40">
+          </div>
+        </div>
+        <p class="hint">Hai con số này chỉ để AI đối chiếu. Nếu dữ liệu thật cho ra số khác, kết quả sẽ ghi rõ lý do.</p>
+      </section>
+
+      <div class="actions">
+        <button id="submit" type="submit">Quét file và tạo</button>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </div>
+    </form>
+
+    <section class="card" id="result" hidden>
+      <h2><span class="step">3</span> Kết quả</h2>
+      <div id="summary"></div>
+      <div class="notes" id="notes" hidden></div>
+      <div class="actions">
+        <button id="downloadAll" type="button">Tải tất cả (.zip)</button>
+      </div>
+      <div class="table-wrap">
+        <table id="preview"></table>
+      </div>
+    </section>
+
+    <footer>
+      <p>Mẫu và file dữ liệu được đọc ngay trên trình duyệt. Phần chữ của mẫu và dữ liệu được gửi tới Claude API để phân tích, file Word được tạo trên máy của anh/chị và không lưu trên máy chủ. Hãy kiểm tra lại nội dung trước khi gửi cho khách hàng.</p>
+    </footer>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
