@@ -10,17 +10,27 @@
 <body>
   <main>
     <header>
+      <p class="userbar" id="userbar" hidden><span id="userEmail"></span> · <a href="/api/auth/logout">Đăng xuất</a></p>
       <p class="eyebrow">Công cụ nội bộ</p>
       <h1>Tạo file hàng loạt từ mẫu Word</h1>
       <p class="lead">Tải mẫu và file dữ liệu lên, mô tả việc cần làm. AI đọc cả hai rồi điền mẫu cho từng khách hàng, anh/chị xem trước rồi tải về.</p>
     </header>
 
     <form id="form" novalidate>
+      <section class="card" id="login" hidden>
+        <h2>Đăng nhập để sử dụng</h2>
+        <p class="hint" id="loginHint">Dùng tài khoản Google của công ty.</p>
+        <div class="actions">
+          <a class="button" href="/api/auth/login">Đăng nhập bằng Google</a>
+        </div>
+      </section>
+
       <section class="card" id="access" hidden>
         <label for="password">Mã truy cập</label>
         <input id="password" type="password" autocomplete="current-password" placeholder="Nhập mã được cấp">
       </section>
 
+      <div id="workspace">
       <section class="card">
         <h2><span class="step">1</span> File đầu vào</h2>
         <div class="grid">
@@ -64,6 +74,7 @@
       <div class="actions">
         <button id="submit" type="submit">Quét file và tạo</button>
         <p class="status" id="status" role="status" aria-live="polite"></p>
+      </div>
       </div>
     </form>
 

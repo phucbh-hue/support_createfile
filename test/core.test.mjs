@@ -102,3 +102,24 @@ test('tên file an toàn và không trùng', () => {
   assert.equal(safeFilename('BBGH: A/B', used), 'BBGH A B.docx');
   assert.equal(safeFilename('BBGH: A/B', used), 'BBGH A B (2).docx');
 });
+
+test('phiên đăng nhập Google: ký, đọc, giới hạn domain', async () => {
+  Object.assign(process.env, { GOOGLE_CLIENT_ID: 'id', GOOGLE_CLIENT_SECRET: 'secret', SESSION_SECRET: 'test-secret', ALLOWED_EMAIL_DOMAINS: 'example.com' });
+  const auth = await import('../lib/auth.js');
+  const req = (cookie, extra = {}) => ({ headers: { host: 'app.example.com', cookie, ...extra } });
+  assert.equal(auth.authMode(), 'google');
+  assert.equal(auth.redirectUri(req('')), 'https://app.example.com/api/auth/callback');
+  const good = 'session=' + encodeURIComponent(auth.createSession({ email: 'a@example.com', name: 'A' }));
+  assert.equal(auth.readSession(req(good)).email, 'a@example.com');
+  assert.equal(auth.authorize(req(good)).ok, true);
+  assert.equal(auth.readSession(req(good.slice(0, -2) + 'xx')), null);
+  const outsider = 'session=' + encodeURIComponent(auth.createSession({ email: 'b@other.com', name: 'B' }));
+  assert.equal(auth.readSession(req(outsider)), null);
+  // có mã truy cập cũng không vượt qua được khi đã bật Google
+  process.env.APP_PASSWORD = 'pw';
+  assert.equal(auth.authorize(req('', { 'x-app-password': 'pw' })).ok, false);
+  delete process.env.GOOGLE_CLIENT_ID;
+  assert.equal(auth.authMode(), 'password');
+  assert.equal(auth.authorize(req('', { 'x-app-password': 'pw' })).ok, true);
+  assert.equal(auth.authorize(req('', { 'x-app-password': 'sai' })).ok, false);
+});

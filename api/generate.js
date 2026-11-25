@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { timingSafeEqual } from 'node:crypto';
+import { authorize } from '../lib/auth.js';
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5';
 const EFFORT = process.env.CLAUDE_EFFORT || 'medium';
@@ -85,14 +85,6 @@ const PLAN_SCHEMA = {
   },
 };
 
-export function passwordOk(given) {
-  const expected = process.env.APP_PASSWORD;
-  if (!expected) return true;
-  const a = Buffer.from(String(given || ''));
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 function buildUserMessage(body) {
   const hints = [];
   if (body.expectedFiles) hints.push(`- Số file dự kiến (ước lượng, có thể sai): ${body.expectedFiles}`);
@@ -119,7 +111,8 @@ function describeError(error) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Chỉ hỗ trợ POST.' });
-  if (!passwordOk(req.headers['x-app-password'])) return res.status(401).json({ error: 'Mã truy cập không đúng.' });
+  const access = authorize(req);
+  if (!access.ok) return res.status(401).json({ error: access.error });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: 'Máy chủ chưa cấu hình ANTHROPIC_API_KEY.' });
 
   const body = req.body || {};
@@ -133,6 +126,9 @@ export default async function handler(req, res) {
   res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
   const send = (event) => res.write(JSON.stringify(event) + '\n');
   const ping = setInterval(() => send({ type: 'ping' }), 10_000);
+  const started = Date.now();
+  // Log vận hành: không ghi nội dung mẫu hay dữ liệu khách hàng.
+  const log = (outcome, extra = {}) => console.log(JSON.stringify({ event: 'generate', outcome, seconds: Math.round((Date.now() - started) / 1000), inputChars: body.template.length + body.data.length, ...extra }));
 
   try {
     const client = new Anthropic();
@@ -153,11 +149,13 @@ export default async function handler(req, res) {
       else if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') send({ type: 'delta', text: event.delta.text });
     }
     const message = await stream.finalMessage();
+    log(message.stop_reason, { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens });
     if (message.stop_reason === 'refusal') send({ type: 'error', message: 'Claude từ chối xử lý yêu cầu này.' });
     else if (message.stop_reason === 'max_tokens') send({ type: 'error', message: 'Kết quả quá dài và bị cắt giữa chừng. Hãy tách file dữ liệu thành nhiều phần nhỏ hơn.' });
     else send({ type: 'done', model: message.model, usage: { input: message.usage.input_tokens, output: message.usage.output_tokens } });
   } catch (error) {
     console.error(error);
+    log('error', { status: error?.status });
     send({ type: 'error', message: describeError(error) });
   } finally {
     clearInterval(ping);

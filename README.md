@@ -16,7 +16,8 @@ File Word được tạo ngay trên máy người dùng, máy chủ không lưu 
 
 - `public/` - giao diện (`index.html`, `app.js`, `style.css`) và lõi xử lý `core.js`
 - `api/generate.js` - gọi Claude, trả kết quả dạng stream
-- `api/config.js` - cho giao diện biết có cần mã truy cập không
+- `api/config.js` - cho giao diện biết cách đăng nhập và ai đang đăng nhập
+- `api/auth/` và `lib/auth.js` - đăng nhập Google, phiên làm việc, mã truy cập
 - `test/` - test phần lõi (`npm test`)
 - `dev-server.mjs` - chạy thử ở máy cá nhân
 
@@ -26,8 +27,16 @@ File Word được tạo ngay trên máy người dùng, máy chủ không lưu 
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Có | API key Claude. Không commit vào repo. |
 | `APP_PASSWORD` | Nên có | Mã truy cập trang, tránh người ngoài dùng API key của công ty. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET` | Không | Đặt đủ cả ba thì trang dùng đăng nhập Google thay cho mã truy cập. |
+| `ALLOWED_EMAIL_DOMAINS`, `ALLOWED_EMAILS` | Không | Giới hạn tài khoản Google được vào (cách nhau bằng dấu phẩy). |
 | `CLAUDE_MODEL` | Không | Mặc định `claude-opus-5-5`. |
 | `CLAUDE_EFFORT` | Không | Mặc định `medium`. |
+
+## Đăng nhập Google
+
+1. Google Cloud Console > APIs & Services > Credentials > Create credentials > OAuth client ID, loại "Web application".
+2. Authorized redirect URIs: `https://<tên miền của trang>/api/auth/callback` (chạy ở máy cá nhân: `http://localhost:3000/api/auth/callback`).
+3. Đặt `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET` (chuỗi ngẫu nhiên dài) trên Vercel rồi deploy lại.
 
 ## Chạy ở máy cá nhân
 

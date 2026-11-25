@@ -15,7 +15,7 @@ http.createServer(async (req, res) => {
   res.json = (obj) => { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify(obj)); };
   try {
     if (url.pathname.startsWith('/api/')) {
-      const name = url.pathname.slice(5).replace(/[^a-z0-9_-]/gi, '');
+      const name = url.pathname.slice(5).split('/').map((s) => s.replace(/[^a-z0-9_-]/gi, '')).filter(Boolean).join('/');
       const mod = await import(`./api/${name}.js`);
       if (req.method === 'POST') {
         const chunks = [];

@@ -22,13 +22,34 @@ function remember(key, value) {
   return '';
 }
 
+const AUTH_ERRORS = {
+  not_allowed: 'Tài khoản Google này không nằm trong danh sách được phép. Hãy dùng email công ty.',
+  unverified: 'Email của tài khoản Google này chưa được xác minh.',
+  cancelled: 'Anh/chị đã hủy đăng nhập.',
+  state: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Hãy thử lại.',
+  token: 'Google trả về thông tin đăng nhập không hợp lệ. Hãy thử lại.',
+  exchange: 'Không xác thực được với Google. Kiểm tra lại Client ID, Client Secret và Authorized redirect URI.',
+  not_configured: 'Máy chủ chưa cấu hình đăng nhập Google.',
+};
+
 async function init() {
   try {
-    const cfg = await (await fetch('/api/config')).json();
-    if (cfg.passwordRequired) {
+    const cfg = await (await fetch('/api/config', { cache: 'no-store' })).json();
+    if (cfg.auth === 'password') {
       $('access').hidden = false;
       $('password').value = remember('accessCode');
+    } else if (cfg.auth === 'google') {
+      if (cfg.user) {
+        $('userEmail').textContent = cfg.user.email;
+        $('userbar').hidden = false;
+      } else {
+        $('login').hidden = false;
+        $('workspace').inert = true;
+        const reason = AUTH_ERRORS[new URLSearchParams(location.search).get('auth_error')];
+        if (reason) setInfo($('loginHint'), reason, 'bad');
+      }
     }
+    if (location.search.includes('auth_error')) history.replaceState(null, '', location.pathname);
     if (!cfg.configured) setStatus('Máy chủ chưa cấu hình API key Claude.', true);
   } catch { /* vẫn cho dùng, lỗi sẽ hiện khi gửi */ }
 }

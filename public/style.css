@@ -62,7 +62,11 @@ input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px
 .chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
 .chip[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent); }
 .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 18px 0; }
-button[type=submit], #downloadAll {
+.userbar { margin: 0 0 14px; font-size: 13px; color: var(--muted); text-align: right; }
+.userbar a { color: var(--accent); }
+a.button { display: inline-block; text-decoration: none; }
+#workspace[inert] { opacity: .45; }
+button[type=submit], #downloadAll, a.button {
   font: inherit; font-weight: 600; padding: 12px 22px; border: 0; border-radius: 8px;
   background: var(--accent); color: var(--accent-ink); cursor: pointer;
 }
