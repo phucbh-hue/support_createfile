@@ -1,4 +1,4 @@
-import { describeTemplate, workbookToText, guessHeaders, generateDocuments, renderValue } from './core.js';
+import { describeTemplate, workbookToText, guessHeaders, docxToText, generateDocuments, renderValue } from './core.js';
 
 const $ = (id) => document.getElementById(id);
 const dom = { DOMParser, XMLSerializer };
@@ -79,13 +79,28 @@ $('data').addEventListener('change', async (e) => {
   $('chips').replaceChildren();
   if (!file) return;
   try {
-    const wb = XLSX.read(new Uint8Array(await file.arrayBuffer()), { type: 'array', cellNF: true });
-    const info = workbookToText(XLSX, wb);
-    if (!info.cellCount) throw new Error('File không có dữ liệu.');
-    state.dataText = info.text;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let headers;
+    if (/\.doc$/i.test(file.name)) {
+      throw new Error('file .doc (Word 97-2003) chưa hỗ trợ. Mở bằng Word, chọn Save As > .docx rồi tải lại.');
+    } else if (/\.docx$/i.test(file.name)) {
+      const main = (await JSZip.loadAsync(bytes)).file('word/document.xml');
+      if (!main) throw new Error('Đây không phải file .docx hợp lệ.');
+      const info = docxToText(await main.async('string'), dom);
+      if (!info.cellCount) throw new Error('File không có dữ liệu.');
+      state.dataText = info.text;
+      setInfo($('dataInfo'), `Đã đọc file Word: ${info.tables} bảng, ${info.paragraphs} đoạn văn có chữ.`, 'ok');
+      headers = info.headers;
+    } else {
+      const wb = XLSX.read(bytes, { type: 'array', cellNF: true });
+      const info = workbookToText(XLSX, wb);
+      if (!info.cellCount) throw new Error('File không có dữ liệu.');
+      state.dataText = info.text;
+      setInfo($('dataInfo'), `Đã đọc: ${info.sheets} sheet, ${info.cellCount} ô có dữ liệu.`, 'ok');
+      headers = guessHeaders(XLSX, wb);
+    }
     state.dataName = file.name;
-    setInfo($('dataInfo'), `Đã đọc: ${info.sheets} sheet, ${info.cellCount} ô có dữ liệu.`, 'ok');
-    for (const header of guessHeaders(XLSX, wb).slice(0, 24)) {
+    for (const header of headers.slice(0, 24)) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'chip';

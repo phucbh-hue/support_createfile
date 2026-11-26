@@ -1,6 +1,6 @@
 // Lõi xử lý dùng chung cho trình duyệt và Node (test):
 // - đọc cấu trúc mẫu .docx thành bản mô tả có ID cho AI
-// - đọc file dữ liệu Excel/CSV thành văn bản
+// - đọc file dữ liệu Excel/CSV/Word thành văn bản
 // - áp kế hoạch (plan) AI trả về lên mẫu để sinh từng file
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -167,6 +167,115 @@ export function guessHeaders(XLSX, wb) {
     if (row.length > best.length) best = row;
   }
   return best.length >= 2 ? [...new Set(best)] : [];
+}
+
+// Word (.docx) làm file dữ liệu: đoạn văn giữ theo thứ tự, bảng ghi theo dòng R<số> và cột A, B, C...
+// giống định dạng của Excel để AI đọc cùng một kiểu.
+function inlineText(node) {
+  let s = '';
+  const walk = (n) => {
+    for (let c = n.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType !== 1) continue;
+      if (c.nodeName === 'w:t') s += c.textContent || '';
+      else if (c.nodeName === 'w:tab') s += ' | ';
+      else if (c.nodeName === 'w:br' || c.nodeName === 'w:cr') s += ' / ';
+      else if (c.nodeName !== 'w:del' && c.nodeName !== 'w:instrText') walk(c);
+    }
+  };
+  walk(node);
+  return s.replace(/\s+/g, ' ').trim().replace(/^([|/] ?)+|( ?[|/])+$/g, '').trim();
+}
+
+function blockChildren(node) {
+  const out = [];
+  for (const el of kids(node)) {
+    if (el.nodeName === 'w:p' || el.nodeName === 'w:tbl') out.push(el);
+    else if (el.nodeName === 'w:sdt') out.push(...blockChildren(kids(el, 'w:sdtContent')[0] || el));
+    else if (el.nodeName === 'w:customXml' || el.nodeName === 'w:sdtContent') out.push(...blockChildren(el));
+  }
+  return out;
+}
+
+function cellText(tc) {
+  return blockChildren(tc).map((el) => (el.nodeName === 'w:p' ? inlineText(el) : tableRows(el).map((r) => r.join(' | ')).join(' / ')))
+    .filter(Boolean).join(' / ');
+}
+
+// Mảng các dòng, mỗi dòng là mảng ô đã đặt đúng cột (tính cả ô gộp ngang).
+function tableRows(tbl) {
+  return kids(tbl, 'w:tr').map((tr) => {
+    const row = [];
+    let col = 0;
+    const cells = [];
+    for (const el of kids(tr)) {
+      if (el.nodeName === 'w:tc') cells.push(el);
+      else if (el.nodeName === 'w:sdt') cells.push(...kids(kids(el, 'w:sdtContent')[0] || el, 'w:tc'));
+    }
+    for (const tc of cells) {
+      const tcPr = kids(tc, 'w:tcPr')[0];
+      const span = Number(tcPr && kids(tcPr, 'w:gridSpan')[0]?.getAttribute('w:val')) || 1;
+      const vMerge = tcPr && kids(tcPr, 'w:vMerge')[0];
+      const continued = vMerge && vMerge.getAttribute('w:val') !== 'restart';
+      row[col] = continued ? '' : cellText(tc);
+      col += span;
+    }
+    return row;
+  });
+}
+
+function colName(i) {
+  let s = '';
+  for (i += 1; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + ((i - 1) % 26)) + s;
+  return s;
+}
+
+export function docxToText(xml, dom) {
+  const doc = new dom.DOMParser().parseFromString(xml, 'application/xml');
+  const body = doc.getElementsByTagName('w:body')[0];
+  if (!body) throw new Error('File Word không hợp lệ (thiếu w:body).');
+  const out = [];
+  let paragraphs = 0;
+  let tables = 0;
+  let cellCount = 0;
+  let headers = [];
+  let pendingText = [];
+  const flushText = () => {
+    if (!pendingText.length) return;
+    out.push('## Đoạn văn', ...pendingText, '');
+    pendingText = [];
+  };
+  for (const el of blockChildren(body)) {
+    if (el.nodeName === 'w:p') {
+      const t = inlineText(el);
+      if (!t) continue;
+      paragraphs++;
+      cellCount++;
+      pendingText.push(`Đ${paragraphs}: ${t}`);
+      continue;
+    }
+    flushText();
+    const rows = tableRows(el);
+    tables++;
+    out.push(`## Bảng ${tables} (${rows.length} dòng)`);
+    rows.forEach((row, r) => {
+      const cells = [];
+      row.forEach((v, c) => {
+        if (v) { cells.push(`${colName(c)}=${v}`); cellCount++; }
+      });
+      if (cells.length) out.push(`R${r + 1}: ${cells.join(' | ')}`);
+    });
+    out.push('');
+    if (!headers.length) {
+      let best = [];
+      for (const row of rows.slice(0, 5)) {
+        const filled = row.filter(Boolean);
+        if (filled.length > best.length) best = filled;
+      }
+      if (best.length >= 2) headers = [...new Set(best)];
+    }
+  }
+  flushText();
+  return { text: out.join('\n').trim(), paragraphs, tables, cellCount, headers };
 }
 
 // ---------- Mẫu .docx ----------

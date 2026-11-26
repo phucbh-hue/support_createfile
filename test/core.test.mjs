@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
-import { evalExpr, formatNumber, readVietnamese, renderValue, describeTemplate, buildDocumentXml, safeFilename } from '../public/core.js';
+import { evalExpr, formatNumber, readVietnamese, renderValue, describeTemplate, buildDocumentXml, safeFilename, docxToText } from '../public/core.js';
 
 const dom = { DOMParser, XMLSerializer };
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
@@ -95,6 +95,32 @@ test('cảnh báo khi ID không tồn tại', () => {
   const plan = { setup: [], slots: [{ key: 'k', target: 'p99', template: '{value}', align: 'keep', bold: false }] };
   const { warnings } = buildDocumentXml(XML, plan, { values: [{ key: 'k', value: 'v' }], remove: ['t9.r9'] }, dom);
   assert.equal(warnings.length, 2);
+});
+
+test('đọc file Word làm dữ liệu: bảng, ô gộp, đoạn văn', () => {
+  const tc = (inner, pr = '') => `<w:tc>${pr ? `<w:tcPr>${pr}</w:tcPr>` : ''}<w:p>${inner}</w:p></w:tc>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><w:document ${W}><w:body>` +
+    `<w:p>${run('Danh sách nhận quà')}</w:p><w:p/>` +
+    `<w:tbl>` +
+    `<w:tr>${tc(run('STT'))}${tc(run('Họ tên'))}${tc(run('Số lượng'))}</w:tr>` +
+    `<w:tr>${tc(run('1'))}${tc(run('Người A') + '<w:r><w:br/></w:r>' + run('Hà Nội'))}${tc(run('35'), '<w:vMerge w:val="restart"/>')}</w:tr>` +
+    `<w:tr>${tc(run('2'))}${tc(run('Người B'))}${tc('', '<w:vMerge/>')}</w:tr>` +
+    `<w:tr>${tc(run('Tổng'), '<w:gridSpan w:val="2"/>')}${tc(run('70'))}</w:tr>` +
+    `</w:tbl>` +
+    `<w:sdt><w:sdtContent><w:p>${run('Người C')}<w:r><w:tab/></w:r>${run('10')}</w:p></w:sdtContent></w:sdt>` +
+    `</w:body></w:document>`;
+  const info = docxToText(xml, dom);
+  assert.equal(info.tables, 1);
+  assert.equal(info.paragraphs, 2);
+  assert.deepEqual(info.headers, ['STT', 'Họ tên', 'Số lượng']);
+  const lines = info.text.split('\n');
+  assert.ok(lines.includes('Đ1: Danh sách nhận quà'));
+  assert.ok(lines.includes('R2: A=1 | B=Người A / Hà Nội | C=35'));
+  assert.ok(lines.includes('R3: A=2 | B=Người B'));
+  assert.ok(lines.includes('R4: A=Tổng | C=70'));
+  assert.ok(lines.includes('Đ2: Người C | 10'));
+  // đoạn văn sau bảng nằm sau phần bảng
+  assert.ok(info.text.indexOf('## Bảng 1') < info.text.indexOf('Đ2:'));
 });
 
 test('tên file an toàn và không trùng', () => {

@@ -1,6 +1,6 @@
 # support_createfile
 
-Công cụ nội bộ: điền một mẫu Word (.docx) hàng loạt từ file dữ liệu (Excel/CSV) bằng Claude.
+Công cụ nội bộ: điền một mẫu Word (.docx) hàng loạt từ file dữ liệu (Excel/CSV hoặc Word .docx chứa bảng/danh sách) bằng Claude.
 
 Người dùng tải mẫu và file dữ liệu lên, mô tả việc cần làm (ví dụ "mỗi người nhận 2 biên bản giao hàng: Lucky draw và Tour"), tùy chọn nhập các trường cần lấy, số khách hàng và số file dự kiến. AI đọc cả hai file, lập kế hoạch điền mẫu, trang web sinh từng file .docx và cho tải về (từng file hoặc một file .zip).
 
